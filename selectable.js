@@ -58,6 +58,32 @@ export default class selectable {
     selectedGetter = null;
 
     /**
+     * Called on init to set selectables
+     * @type {Function | null}
+     */
+    initSelectable = null;
+
+    /**
+     * Called to get list of selected items on mouse UP
+     * @type {Function | null}
+     */
+    selectedProcessDown = null;
+
+    /**
+     * Called to get list of selected items on mouse UP
+     * @type {Function | null}
+     */
+    selectedProcessUp = null;
+
+    /**
+     * Reset the selecting array
+     * @type {Function | null}
+     */
+    resetSelected = null;
+
+    updateSelectionProcess = null;
+
+    /**
      * Called to set list of items under selection box
      * @type {Function | null}
      */
@@ -159,7 +185,11 @@ export default class selectable {
      */
     setSelectables(elements) {
         this.selectables = elements;
-        this.selected = elements.map(i => false);
+        if(typeof this.initSelectable === 'function') {
+            this.selected = this.initSelectable(elements);
+        } else {
+            this.selected = elements.map(i => false);
+        }
         if (typeof this.selectedSetter === 'function') {
             this.selectedSetter(this.selected, this.selected);
         }
@@ -208,7 +238,11 @@ export default class selectable {
         this.endX = x;
         this.endY = y;
         this.dragging = true;
-        this.selecting = this.selectables.map(i => false); // reset all selection
+        if(typeof this.resetSelected === 'function') {
+            this.selecting = this.resetSelected();
+        } else {
+            this.selecting = this.selectables.map(i => false); // reset all selection
+        }
         if (typeof this.selectingSetter === 'function') {
             this.selectingSetter(this.selecting);
         }
@@ -220,7 +254,11 @@ export default class selectable {
             }
         } else if (typeof this.selectedGetter === 'function') {
             let gotSelection = this.selectedGetter() || [];
-            this.selected = this.selectables.map((v, i) => !!gotSelection[i]);
+            if(typeof this.selectedProcessDown === 'function') {
+                this.selected = this.selectedProcessDown(this.selectables, gotSelection);
+            } else {
+                this.selected = this.selectables.map((v, i) => !!gotSelection[i]);
+            }
         }
         this.updateSelection();
         this.render();
@@ -252,7 +290,11 @@ export default class selectable {
             this.updateSelection();
             if (typeof this.selectedGetter === 'function') {
                 let gotSelection = this.selectedGetter() || [];
-                this.selected = this.selectables.map((v, i) => !!gotSelection[i]);
+                if(typeof this.selectedProcessUp === 'function') {
+                    this.selected = this.selectedProcessUp(gotSelection);
+                } else {
+                    this.selected = this.selectables.map((v, i) => !!gotSelection[i]);
+                }
             }
             if (this.addMode) {
                 let selectingItemsQty = this.selecting.reduce((a, i) => a + i ? 1 : 0, 0);
@@ -375,12 +417,35 @@ export default class selectable {
      * Updates list of selected items (under current selection box)
      */
     updateSelection() {
-        let s = this.getSelectionBox();
+        let s = this.getSelectionBox(),
+            isFunction = typeof this.updateSelectionProcess === 'function',
+            obj;
         s.top -= this.scrollingFrame ? this.scrollingFrame.scrollTop : 0;
-        this.selecting = this.selectables.map(selectable.absBox).map(b =>
-            (Math.abs((s.left - b.left) * 2 + s.width - b.width) < (s.width + b.width)) &&
-            (Math.abs((s.top - b.top) * 2 + s.height - b.height) < (s.height + b.height))
+
+        obj = this.selectables.map(item => {
+
+                let b = selectable.absBox(item),
+                    isAllowed;
+
+                isAllowed = (Math.abs((s.left - b.left) * 2 + s.width - b.width) < (s.width + b.width)) &&
+                    (Math.abs((s.top - b.top) * 2 + s.height - b.height) < (s.height + b.height));
+
+                if(isFunction && isAllowed) {
+                    return this.updateSelectionProcess(item);
+                } else if(isFunction && !isAllowed) {
+                    return undefined;
+                } else {
+                    return isAllowed
+                }
+            }
         );
+
+        if(isFunction) {
+            obj = _.compact(obj);
+        }
+
+        this.selecting = obj;
+
         if (this.selectingSetter) {
             this.selectingSetter(this.selecting);
         }

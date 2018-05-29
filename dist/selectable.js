@@ -148,13 +148,31 @@ var selectable = function () {
 
 
     /**
-     * Called to get list of selected items
+     * Called to get list of selected items on mouse UP
      * @type {Function | null}
      */
 
 
     /**
-     * Element that limits where selection can be made
+     * Called on init to set selectables
+     * @type {Function | null}
+     */
+
+
+    /**
+     * Called to pass out list of selected items
+     * @type {Function | null}
+     */
+
+
+    /**
+     * CSS selector of element that limits where selection can be made (has higher priority than boundingBox)
+     * @type {HTMLDocument}
+     */
+
+
+    /**
+     * Event listeners are attached to this element
      * @type {HTMLDocument}
      */
     function selectable() {
@@ -178,6 +196,11 @@ var selectable = function () {
         this.selected = [];
         this.selectedSetter = null;
         this.selectedGetter = null;
+        this.initSelectable = null;
+        this.selectedProcessDown = null;
+        this.selectedProcessUp = null;
+        this.resetSelected = null;
+        this.updateSelectionProcess = null;
         this.selectingSetter = null;
         this.selecting = [];
         this.addMode = false;
@@ -239,19 +262,25 @@ var selectable = function () {
 
 
     /**
-     * Called to pass out list of selected items
+     * Reset the selecting array
      * @type {Function | null}
      */
 
 
     /**
-     * CSS selector of element that limits where selection can be made (has higher priority than boundingBox)
-     * @type {HTMLDocument}
+     * Called to get list of selected items on mouse UP
+     * @type {Function | null}
      */
 
 
     /**
-     * Event listeners are attached to this element
+     * Called to get list of selected items
+     * @type {Function | null}
+     */
+
+
+    /**
+     * Element that limits where selection can be made
      * @type {HTMLDocument}
      */
 
@@ -286,9 +315,13 @@ var selectable = function () {
         key: 'setSelectables',
         value: function setSelectables(elements) {
             this.selectables = elements;
-            this.selected = elements.map(function (i) {
-                return false;
-            });
+            if (typeof this.initSelectable === 'function') {
+                this.selected = this.initSelectable(elements);
+            } else {
+                this.selected = elements.map(function (i) {
+                    return false;
+                });
+            }
             if (typeof this.selectedSetter === 'function') {
                 this.selectedSetter(this.selected, this.selected);
             }
@@ -341,9 +374,13 @@ var selectable = function () {
             this.endX = x;
             this.endY = y;
             this.dragging = true;
-            this.selecting = this.selectables.map(function (i) {
-                return false;
-            }); // reset all selection
+            if (typeof this.resetSelected === 'function') {
+                this.selecting = this.resetSelected();
+            } else {
+                this.selecting = this.selectables.map(function (i) {
+                    return false;
+                }); // reset all selection
+            }
             if (typeof this.selectingSetter === 'function') {
                 this.selectingSetter(this.selecting);
             }
@@ -355,9 +392,13 @@ var selectable = function () {
                 }
             } else if (typeof this.selectedGetter === 'function') {
                 var gotSelection = this.selectedGetter() || [];
-                this.selected = this.selectables.map(function (v, i) {
-                    return !!gotSelection[i];
-                });
+                if (typeof this.selectedProcessDown === 'function') {
+                    this.selected = this.selectedProcessDown(this.selectables, gotSelection);
+                } else {
+                    this.selected = this.selectables.map(function (v, i) {
+                        return !!gotSelection[i];
+                    });
+                }
             }
             this.updateSelection();
             this.render();
@@ -399,9 +440,13 @@ var selectable = function () {
                 this.updateSelection();
                 if (typeof this.selectedGetter === 'function') {
                     var gotSelection = this.selectedGetter() || [];
-                    this.selected = this.selectables.map(function (v, i) {
-                        return !!gotSelection[i];
-                    });
+                    if (typeof this.selectedProcessUp === 'function') {
+                        this.selected = this.selectedProcessUp(gotSelection);
+                    } else {
+                        this.selected = this.selectables.map(function (v, i) {
+                            return !!gotSelection[i];
+                        });
+                    }
                 }
                 if (this.addMode) {
                     var selectingItemsQty = this.selecting.reduce(function (a, i) {
@@ -550,11 +595,35 @@ var selectable = function () {
          * Updates list of selected items (under current selection box)
          */
         value: function updateSelection() {
-            var s = this.getSelectionBox();
+            var _this6 = this;
+
+            var s = this.getSelectionBox(),
+                isFunction = typeof this.updateSelectionProcess === 'function',
+                obj = void 0;
             s.top -= this.scrollingFrame ? this.scrollingFrame.scrollTop : 0;
-            this.selecting = this.selectables.map(selectable.absBox).map(function (b) {
-                return Math.abs((s.left - b.left) * 2 + s.width - b.width) < s.width + b.width && Math.abs((s.top - b.top) * 2 + s.height - b.height) < s.height + b.height;
+
+            obj = this.selectables.map(function (item) {
+
+                var b = selectable.absBox(item),
+                    isAllowed = void 0;
+
+                isAllowed = Math.abs((s.left - b.left) * 2 + s.width - b.width) < s.width + b.width && Math.abs((s.top - b.top) * 2 + s.height - b.height) < s.height + b.height;
+
+                if (isFunction && isAllowed) {
+                    return _this6.updateSelectionProcess(item);
+                } else if (isFunction && !isAllowed) {
+                    return undefined;
+                } else {
+                    return isAllowed;
+                }
             });
+
+            if (isFunction) {
+                obj = _.compact(obj);
+            }
+
+            this.selecting = obj;
+
             if (this.selectingSetter) {
                 this.selectingSetter(this.selecting);
             }
@@ -583,24 +652,24 @@ var selectable = function () {
     }, {
         key: 'renderSelection',
         value: function renderSelection() {
-            var _this6 = this;
+            var _this7 = this;
 
             if (!this.renderSelected && !this.renderSelecting) {
                 return;
             }
             this.selectables.forEach(function (e, i) {
-                if (_this6.renderSelecting) {
-                    if (_this6.dragging && !!_this6.selecting[i]) {
-                        e.classList.add(_this6.selectingClass);
+                if (_this7.renderSelecting) {
+                    if (_this7.dragging && !!_this7.selecting[i]) {
+                        e.classList.add(_this7.selectingClass);
                     } else {
-                        e.classList.remove(_this6.selectingClass);
+                        e.classList.remove(_this7.selectingClass);
                     }
                 }
-                if (_this6.renderSelected) {
-                    if (!_this6.selected[i]) {
-                        e.classList.remove(_this6.selectedClass);
+                if (_this7.renderSelected) {
+                    if (!_this7.selected[i]) {
+                        e.classList.remove(_this7.selectedClass);
                     } else {
-                        e.classList.add(_this6.selectedClass);
+                        e.classList.add(_this7.selectedClass);
                     }
                 }
             });
