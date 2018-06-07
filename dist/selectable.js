@@ -154,25 +154,19 @@ var selectable = function () {
 
 
     /**
-     * Called on init to set selectables
+     * Called to get list of selected items on mouse UP
      * @type {Function | null}
      */
 
 
     /**
-     * Called to pass out list of selected items
+     * Called to get list of selected items
      * @type {Function | null}
      */
 
 
     /**
-     * CSS selector of element that limits where selection can be made (has higher priority than boundingBox)
-     * @type {HTMLDocument}
-     */
-
-
-    /**
-     * Event listeners are attached to this element
+     * Element that limits where selection can be made
      * @type {HTMLDocument}
      */
     function selectable() {
@@ -198,6 +192,7 @@ var selectable = function () {
         this.selectedGetter = null;
         this.initSelectable = null;
         this.selectedProcessDown = null;
+        this.multiSelection = null;
         this.selectedProcessUp = null;
         this.resetSelected = null;
         this.updateSelectionProcess = null;
@@ -274,13 +269,25 @@ var selectable = function () {
 
 
     /**
-     * Called to get list of selected items
+     * Called on init to set selectables
      * @type {Function | null}
      */
 
 
     /**
-     * Element that limits where selection can be made
+     * Called to pass out list of selected items
+     * @type {Function | null}
+     */
+
+
+    /**
+     * CSS selector of element that limits where selection can be made (has higher priority than boundingBox)
+     * @type {HTMLDocument}
+     */
+
+
+    /**
+     * Event listeners are attached to this element
      * @type {HTMLDocument}
      */
 
@@ -314,6 +321,7 @@ var selectable = function () {
     }, {
         key: 'setSelectables',
         value: function setSelectables(elements) {
+
             this.selectables = elements;
             if (typeof this.initSelectable === 'function') {
                 this.selected = this.initSelectable(elements);
@@ -393,7 +401,7 @@ var selectable = function () {
             } else if (typeof this.selectedGetter === 'function') {
                 var gotSelection = this.selectedGetter() || [];
                 if (typeof this.selectedProcessDown === 'function') {
-                    this.selected = this.selectedProcessDown(this.selectables, gotSelection);
+                    this.selectedProcessDown(this.selectables, this.selecting, gotSelection);
                 } else {
                     this.selected = this.selectables.map(function (v, i) {
                         return !!gotSelection[i];
@@ -448,19 +456,24 @@ var selectable = function () {
                         });
                     }
                 }
+
                 if (this.addMode) {
-                    var selectingItemsQty = this.selecting.reduce(function (a, i) {
-                        return a + i ? 1 : 0;
-                    }, 0);
-                    var idx = this.selecting.findIndex(function (v) {
-                        return !!v;
-                    });
-                    if (selectingItemsQty === 1 && this.selected[idx]) {
-                        this.selected[idx] = false;
+                    if (typeof this.multiSelection === 'function') {
+                        this.selected = this.multiSelection(this.selected, this.selecting);
                     } else {
-                        this.selected = this.selected.map(function (v, i) {
-                            return v || _this3.selecting[i];
+                        var selectingItemsQty = this.selecting.reduce(function (a, i) {
+                            return a + i ? 1 : 0;
+                        }, 0);
+                        var idx = this.selecting.findIndex(function (v) {
+                            return !!v;
                         });
+                        if (selectingItemsQty === 1 && this.selected[idx]) {
+                            this.selected[idx] = false;
+                        } else {
+                            this.selected = this.selected.map(function (v, i) {
+                                return v || _this3.selecting[i];
+                            });
+                        }
                     }
                 } else {
                     this.selected = this.selecting;
@@ -619,7 +632,7 @@ var selectable = function () {
             });
 
             if (isFunction) {
-                obj = _.compact(obj);
+                obj = obj.filter(Boolean);
             }
 
             this.selecting = obj;

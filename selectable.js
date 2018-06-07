@@ -73,6 +73,12 @@ export default class selectable {
      * Called to get list of selected items on mouse UP
      * @type {Function | null}
      */
+    multiSelection = null;
+
+    /**
+     * Called to get list of selected items on mouse UP
+     * @type {Function | null}
+     */
     selectedProcessUp = null;
 
     /**
@@ -184,6 +190,7 @@ export default class selectable {
      * @param {Element[]} elements
      */
     setSelectables(elements) {
+
         this.selectables = elements;
         if(typeof this.initSelectable === 'function') {
             this.selected = this.initSelectable(elements);
@@ -255,7 +262,7 @@ export default class selectable {
         } else if (typeof this.selectedGetter === 'function') {
             let gotSelection = this.selectedGetter() || [];
             if(typeof this.selectedProcessDown === 'function') {
-                this.selected = this.selectedProcessDown(this.selectables, gotSelection);
+                this.selectedProcessDown(this.selectables, this.selecting, gotSelection);
             } else {
                 this.selected = this.selectables.map((v, i) => !!gotSelection[i]);
             }
@@ -296,13 +303,18 @@ export default class selectable {
                     this.selected = this.selectables.map((v, i) => !!gotSelection[i]);
                 }
             }
+
             if (this.addMode) {
-                let selectingItemsQty = this.selecting.reduce((a, i) => a + i ? 1 : 0, 0);
-                let idx = this.selecting.findIndex(v => !!v);
-                if (selectingItemsQty === 1 && this.selected[idx]) {
-                    this.selected[idx] = false;
+                if(typeof this.multiSelection === 'function') {
+                    this.selected = this.multiSelection(this.selected, this.selecting);
                 } else {
-                    this.selected = this.selected.map((v, i) => v || this.selecting[i]);
+                    let selectingItemsQty = this.selecting.reduce((a, i) => a + i ? 1 : 0, 0);
+                    let idx = this.selecting.findIndex(v => !!v);
+                    if (selectingItemsQty === 1 && this.selected[idx]) {
+                        this.selected[idx] = false;
+                    } else {
+                        this.selected = this.selected.map((v, i) => v || this.selecting[i]);
+                    }
                 }
             } else {
                 this.selected = this.selecting;
@@ -441,7 +453,7 @@ export default class selectable {
         );
 
         if(isFunction) {
-            obj = _.compact(obj);
+            obj = obj.filter(Boolean);
         }
 
         this.selecting = obj;
