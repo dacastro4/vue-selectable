@@ -153,6 +153,8 @@ export default class selectable {
 
     firstRun = true;
 
+    disabled = () => false;
+
     /**
      * Initializes selection component
      * @param {Object} options misc selection options
@@ -217,6 +219,9 @@ export default class selectable {
      * @param {MouseEvent} e
      */
     mouseDown(e) {
+        if(this.disabled()) {
+            return;
+        }
         if (e.button !== 0) {
             return;
         }
@@ -276,6 +281,9 @@ export default class selectable {
      * @param {MouseEvent} e
      */
     mouseUp(e) {
+        if(this.disabled()) {
+            return;
+        }
         if (this.dragging) {
             if (e.button !== 0) {
                 return;
@@ -335,6 +343,9 @@ export default class selectable {
      * @param {MouseEvent} e
      */
     mouseMove(e) {
+        if(this.disabled()) {
+            return;
+        }
         if (this.dragging) {
             let [x, y] = this.bound(e);
             this.endX = x;
