@@ -680,22 +680,28 @@ var selectable = function () {
         value: function renderSelection() {
             var _this7 = this;
 
+            console.log('selection', !this.renderSelected && !this.renderSelecting);
             if (!this.renderSelected && !this.renderSelecting) {
                 return;
             }
+            console.log('after');
             this.selectables.forEach(function (e, i) {
                 if (_this7.renderSelecting) {
-                    if (_this7.dragging && !!_this7.selecting[i]) {
+                    if (_this7.dragging && !!_this7.selecting[i] && !e.classList.contains('disabled') && !e.hasAttribute('disabled')) {
                         e.classList.add(_this7.selectingClass);
                     } else {
                         e.classList.remove(_this7.selectingClass);
                     }
                 }
                 if (_this7.renderSelected) {
+                    console.log(e.classList.contains('disabled'), e.classList);
+
                     if (!_this7.selected[i]) {
                         e.classList.remove(_this7.selectedClass);
                     } else {
-                        e.classList.add(_this7.selectedClass);
+                        if (!e.classList.contains('disabled') && !e.hasAttribute('disabled')) {
+                            e.classList.add(_this7.selectedClass);
+                        }
                     }
                 }
             });
@@ -708,6 +714,7 @@ var selectable = function () {
     }, {
         key: 'render',
         value: function render() {
+            console.log('reneder');
             var elStyle = this.selectBox.style;
             if (this.dragging) {
                 var box = this.getSelectionBox();

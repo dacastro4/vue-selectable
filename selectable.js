@@ -496,7 +496,7 @@ export default class selectable {
         }
         this.selectables.forEach((e, i) => {
             if (this.renderSelecting) {
-                if (this.dragging && !!this.selecting[i]) {
+                if (this.dragging && !!this.selecting[i] && (!e.classList.contains('disabled') && !e.hasAttribute('disabled'))) {
                     e.classList.add(this.selectingClass);
                 } else {
                     e.classList.remove(this.selectingClass);
@@ -506,7 +506,9 @@ export default class selectable {
                 if (!this.selected[i]) {
                     e.classList.remove(this.selectedClass);
                 } else {
-                    e.classList.add(this.selectedClass);
+                    if( (!e.classList.contains('disabled') && !e.hasAttribute('disabled')) ) {
+                        e.classList.add(this.selectedClass);
+                    }
                 }
             }
         });
